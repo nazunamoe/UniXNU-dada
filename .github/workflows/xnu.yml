@@ -1,0 +1,97 @@
+name: dada XNU kernel
+# Builds the dada kernel on a macOS runner (the Linux toolchain needs a source build of LLVM) and uploads kernel.macho
+# with the inputs that boot.img assembly needs. Firmware, payload and boot.img are assembled on a local machine with
+# the downloaded artifact: see README "Testing on the phone".
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dada-xnu-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  # UniXNU revision the dada patch series was checked against (all 76 patches apply to the pinned XNU at this commit).
+  UNIXNU_REV: 630b85a307f19c8d8a4699d5bfc12f6796b874aa
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: device
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: UniXNU/UniXNU
+          ref: ${{ env.UNIXNU_REV }}
+          path: main
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply the UniXNU changes dada needs
+        working-directory: main
+        run: |
+          # DadaUfs catalog entry and the four script patches that are not upstream (device/docs/patches).
+          for patch in unixnu-components-dadaufs unixnu-kern-exit-owner-cache unixnu-owner-cache-bringup \
+                       unixnu-symbols-skip-missing unixnu-ufs-archive-override; do
+            git apply --verbose "../device/docs/patches/$patch.patch"
+          done
+      - name: Install host tools and check the SDK
+        run: |
+          brew install cmake ninja unifdef llvm mtools openssl@3 dtc
+          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-path
+      - name: Resolve the profiles and fetch pinned sources
+        working-directory: main
+        run: |
+          ./unixnu defconfig dada_defconfig -D ../device
+          ./unixnu fetch xnu libplatform libdispatch AvailabilityVersions libpthread corecrypto-2023 IOStorageFamily
+          ./unixnu tree
+          OUTPUT="$PWD/out/dada/ipados-17.7.11-21H461/dada"
+          mkdir -p "$OUTPUT/logs"
+          echo "UNIXNU_OUTDIR=$OUTPUT" >> "$GITHUB_ENV"
+          echo "UNIXNU_TREE=$OUTPUT/tree" >> "$GITHUB_ENV"
+          ./unixnu status --json > "$OUTPUT/status.json"
+          cp ../device/unixnu.lock "$OUTPUT/unixnu.lock"
+      - name: Check the archive plan
+        working-directory: main
+        run: python3 ../device/scripts/tests/check-kernel-archives.py --device ../device --tree "$UNIXNU_TREE"
+      - name: Fetch the original IPSW inputs
+        working-directory: main
+        run: ./unixnu ipsw fetch KernelCache OS Cryptex1,SystemOS StaticTrustCache Cryptex1,SystemTrustCache 2>&1 | tee "$UNIXNU_OUTDIR/logs/ipsw.log"
+      - name: Audit the original display ABI
+        working-directory: main
+        run: python3 "$UNIXNU_TREE/scripts/audit-stage7-display.py" out/ipsw/21H461/kernelcache.decompressed
+      - name: Prepare volatile Data from the original var tree
+        working-directory: main
+        run: |
+          sudo "$(command -v python3)" ../device/scripts/prepare-ram-data.py --tree "$UNIXNU_TREE" \
+            --source out/ipsw/21H461/044-76040-038.dmg --systemos out/ipsw/21H461/044-76034-038.dmg \
+            --output "$UNIXNU_OUTDIR/ram-data" --config "$UNIXNU_OUTDIR/.config" \
+            2>&1 | tee "$UNIXNU_OUTDIR/logs/ram-data.log"
+      - name: Build XNU, the display archive and prelink
+        working-directory: main
+        run: ./unixnu kernel -j 3 2>&1 | tee "$UNIXNU_OUTDIR/logs/build.log"
+      - name: Upload the kernel and its inputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dada-kernel-${{ github.run_number }}
+          path: |
+            main/out/dada/ipados-17.7.11-21H461/dada/kernel/**
+            main/out/dada/ipados-17.7.11-21H461/dada/ram-data/data.dbrdisk
+            main/out/dada/ipados-17.7.11-21H461/dada/ram-data/seed.json
+            main/out/dada/ipados-17.7.11-21H461/dada/.config
+            main/out/dada/ipados-17.7.11-21H461/dada/status.json
+            main/out/dada/ipados-17.7.11-21H461/dada/unixnu.lock
+            main/out/dada/ipados-17.7.11-21H461/dada/logs/**
+            main/out/ipsw/21H461/kernelcache.decompressed
+          if-no-files-found: warn

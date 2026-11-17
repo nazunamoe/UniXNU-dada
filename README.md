@@ -50,7 +50,7 @@ yet.
 | Data volume | the packed `DBRDISK1` seed is published by `RamBlock` and mounted at `/private/var` |
 | AMFI and PMGR | the sheng-derived PMGR instrument publishes the `ApplePMGRNub` AMFI asks for |
 | **Userland** | **`launchd` (pid 1), `backboardd`, `SpringBoard`, `runningboardd`, `lsd`, `cfprefsd` and `containermanage` all run; the iOS userland starts completely** |
-| Display output | **not yet: the kernel video console draws, but no `IOMobileFramebuffer` service reaches userland** |
+| Display output | **wired, not yet booted: UniXNU-Pagani's NativeLegacyDisplay (CPU copy into the GOP framebuffer) is linked with `CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y` and `scripts/build-dada-legacy-display.py`; see `porting.toml` area `display`** |
 
 The userland is up. A captured kernel log lists `launchd p1`, `backboardd p57`,
 `SpringBoard p153`, `runningboardd p26`, `lsd p100`, `cfprefsd p90` and
@@ -118,6 +118,28 @@ the firmware volume. This workspace has all of them applied; a fresh
 checkout needs the four script patches until they are upstreamed. UniXNU's
 `components.toml` also carries the `DadaUfs` catalog entry. The porting record
 lists the limit.
+
+## Testing the display on the phone
+
+The kernel is built by GitHub Actions on a macOS runner (`.github/workflows/xnu.yml`, run it with *Run workflow*; about
+1-3 hours). It pins the UniXNU revision, applies `docs/patches/unixnu-*.patch`, fetches the 21H461 IPSW, builds the
+volatile Data seed and the kernel, and uploads `dada-kernel-N`: `kernel.macho`, `data.dbrdisk`, `.config` and the logs.
+
+Then, on a machine with the UniXNU checkout (same revision and patches), `uefi-dada` and the stock `dada.dtb`:
+
+```sh
+./unixnu defconfig dada_defconfig -D ../UniXNU-dada
+./unixnu build firmware -D ../UniXNU-dada --uefi ../uefi-dada
+./unixnu build payload  -D ../UniXNU-dada --kernel dada-kernel-N/kernel/kernel.macho \
+  --unique-chip-id "$UNIXNU_UNIQUE_CHIP_ID" --data-ramdisk dada-kernel-N/ram-data/data.dbrdisk
+./unixnu bootimg -D ../UniXNU-dada --uefi ../uefi-dada --dtb /path/to/dada.dtb
+fastboot boot out/dada/ipados-17.7.11-21H461/dada/boot/boot.img     # nothing is flashed
+```
+
+`CONFIG_XNU_OWNER_DATA_VOLUME_UUID` of the kernel must be the UUID the seed reports in `seed.json`; the workflow's
+`.config` already has it, so build the payload from that `.config`. After the phone is back in Android, read the log
+(see "Boot log on the UFS disk") and look for `dada-display:` lines: `display class initialized`, `GOP display started`
+and `system frame copied` in that order mean the framebuffer service works.
 
 ## Host build
 

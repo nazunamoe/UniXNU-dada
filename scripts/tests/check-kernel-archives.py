@@ -43,7 +43,7 @@ ARCHIVES = {
     'XNU_NATIVE_AES': ('build/software-aes/libSoftwareAES.a', ('component', 'SoftwareAES')),
     'XNU_BOOT_PROGRESS': ('build/boot-progress/libBootProgress.a', ('script', 'build-boot-progress.py')),
     'XNU_NATIVE_LEGACY_DISPLAY': ('build/native-legacy-display/libNativeLegacyDisplay.late.a',
-                                  ('script', 'build-native-legacy-display.py')),
+                                  ('script', 'build-dada-legacy-display.py')),
 }
 
 failures = []
@@ -441,10 +441,17 @@ def check_binding_slide(device, tree=None):
     # pinned to the original image's layout.
     check(".set {name}, {address:#x}" in text and 'for name, address in sorted(bound.items())' in text,
           'build-storage-kext-bindings.py writes .set only for kext-owned slots')
+    # The slide reaches the builder either from the kernel step (UNIXNU_PRELINK_SLIDE, which the maintainer's UniXNU
+    # sets) or as --slide in the board's archive command (the public UniXNU does not set it).
+    board = tomllib.loads((device / 'board.toml').read_text())['kernel']
+    profile = device.parent / 'UniXNU/profiles/os/ipados-17.7.11-21H461/profile.toml'
+    slide = (tomllib.loads(profile.read_text()).get('kernel', {}).get('prelink', {}).get('slide')
+             if profile.is_file() else '-0x1000000')
+    command = next((entry for entry in board.get('archives', []) if entry.startswith('build-storage-kext-bindings.py')), '')
     kernel = device.parent / 'UniXNU/scripts/unixnu/kernel.py'
-    if kernel.is_file():
-        check('UNIXNU_PRELINK_SLIDE' in kernel.read_text(),
-              'the kernel step hands the board prelink slide to the bindings builder')
+    from_kernel = kernel.is_file() and 'UNIXNU_PRELINK_SLIDE' in kernel.read_text()
+    check(from_kernel or (slide is not None and f'--slide={slide}' in command),
+          'the board prelink slide reaches the bindings builder (kernel step or --slide)')
     check_reference_is_bytes(text)
 
 

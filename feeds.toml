@@ -1,13 +1,13 @@
 # Sources of this board repository. UniXNU's own feeds.toml supplies xnu,
 # libplatform, libdispatch, AvailabilityVersions, edk2, libpthread and
-# corecrypto; the board pins the shared SoC source here.
+# corecrypto; the board names the shared SoC source here.
 #
-# Common SM8750 resources and platform operations live in
-# UniXNU-sm8750-common. The URL is the maintainer's repository; until it is
-# pushed there, point this source at the local checkout with local.toml
-# (ignored). local.toml.example documents the override.
+# The maintainer pinned https://github.com/7Night-kqx/UniXNU-sm8750-common at
+# afeeb96906b80cf616cc5e51314f93860f431fbc, which is not published. Until it is,
+# the SoC source is soc/sm8750 in this repository: the public
+# IssacL04/UniXNU-sm8750-common feaa135 with the two DTS labels dada.dts needs
+# and without the patches the device series already carries (soc/sm8750/soc.toml).
 [[source]]
 name = "sm8750"
 kind = "soc"
-git = "https://github.com/7Night-kqx/UniXNU-sm8750-common.git"
-commit = "afeeb96906b80cf616cc5e51314f93860f431fbc"
+local = "soc/sm8750"

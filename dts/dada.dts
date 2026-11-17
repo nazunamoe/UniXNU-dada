@@ -36,6 +36,12 @@
     timebase-frequency = <19200000>;
 };
 
+/* The SoC DTSI lists the eight cores disabled. Only the boot core is exported: secondary cores stay parked
+ * (no sheng-smp=1), and a single-CPU ADT keeps XNU from waiting on cores nothing starts. */
+&cpu0 {
+    status = "okay";
+};
+
 &{/timer} {
     interrupt-parent = <&intc>;
 };

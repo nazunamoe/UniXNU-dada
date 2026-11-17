@@ -85,18 +85,16 @@ CONFIG_XNU_CRYPTO_BOOTSTRAP="prelinked"
 #   XNU_NATIVE_MOBILE_DISPLAY  needs the Adreno path
 #   XNU_ARMVIRT_PLATFORM       this is not the QEMU virt platform
 #   XNU_SOURCE_MOCKFS          test fixture, not wanted in a device kernel
-#   XNU_NATIVE_LEGACY_DISPLAY  its builder is an instrument for the original IOMobileFramebufferLegacy
-#                              lifecycle and compiles kits/sheng board code (touch, keystore, GPU power,
-#                              Novatek, cpufreq). A text console does not need it: DarwinBoot fills
-#                              boot_args.Video[6] from the UEFI GOP and XNU's pexpert video console draws
-#                              through that. Turn it on again with a trimmed, board-neutral builder when a
-#                              framebuffer service (not a text console) is wanted.
 CONFIG_XNU_NATIVE_ADRENO=n
 CONFIG_XNU_SHENG_PMGR=y
 CONFIG_XNU_NATIVE_MOBILE_DISPLAY=n
 CONFIG_XNU_ARMVIRT_PLATFORM=n
 CONFIG_XNU_SOURCE_MOCKFS=n
-CONFIG_XNU_NATIVE_LEGACY_DISPLAY=n
+# The display service (UniXNU-Pagani NativeLegacyDisplay, CPU copy into the GOP framebuffer): links
+# build/native-legacy-display/libNativeLegacyDisplay.late.a from scripts/build-dada-legacy-display.py and compiles the
+# offline-legacy-start hook that starts it after IOKitBSDInit. XNU_NATIVE_MOBILE_DISPLAY (the GopFramebuffer component)
+# stays off: this is the other, legacy-ABI, framebuffer service.
+CONFIG_XNU_NATIVE_LEGACY_DISPLAY=y
 
 # TODO(device): set the scratch Data volume UUID when the userdata image exists.
 # CONFIG_XNU_OWNER_DATA_VOLUME_UUID="00000000-0000-0000-0000-000000000000"

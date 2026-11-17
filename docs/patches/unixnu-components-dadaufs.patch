@@ -1,0 +1,31 @@
+diff --git a/components.toml b/components.toml
+index 22479ba..9c35f5f 100644
+--- a/components.toml
++++ b/components.toml
+@@ -141,6 +141,26 @@ outputs = ["build/sheng-ufs/libShengUfs.a"]
+ legacy_name = "NativeUfs"
+ legacy_outputs = { "build/native-ufs/libNativeUfs.a" = "build/sheng-ufs/libShengUfs.a" }
+ 
++[[component]]
++id = "DadaUfs"
++kind = "driver"
++function = "SM8750 UFS transport of the Xiaomi 15 (dada), forked from ShengUfs"
++scope = "board"
++repository = "https://github.com/7Night-kqx/UniXNU-dada.git"
++revision = "81981cdf679620bcd30457d1d518d3b93d753434"
++path = "drivers/DadaUfs"
++hardware = ["SM8750 UFS controller"]
++os_abi = ["ipados-17.7.11-21H461"]
++board_dependencies = ["dada linux partition", "SM8750 clocks and SMMU"]
++verified_devices = ["dada"]
++dependencies = ["VirtioMmioBlock"]
++source_files = ["DadaUfs.cpp"]
++runtime_identifiers = ["NativeUfs", "NativeUfsBlock", "DadaUfs.cpp"]
++build_stage = "kernel"
++build = ["build-arm-driver.py", "DadaUfs"]
++outputs = ["build/dada-ufs/libDadaUfs.a"]
++legacy_name = "NativeUfs"
++
+ [[component]]
+ id = "ShengHidInput"
+ repository_id = 1426849181

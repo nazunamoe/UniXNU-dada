@@ -1,3 +1,8 @@
+# The OS profile's two XnuPrelink patches. board.toml does not apply the OS series itself: its first entry is the full
+# zzz-boot-progress.patch, which dada replaces with zzz-boot-progress-min.patch below (both create
+# osfmk/kern/boot_progress.h) and which needs the PMGR hook this series applies later.
+component:XnuPrelink/patches/xnu-10063.141.1-security-init.patch
+component:XnuPrelink/patches/xnu-10063.141.1-sparse-index.patch
 zzz-boot-progress-min.patch
 native-smp-secondary.patch
 zzzz-dada-skip-entitlement-acceleration-without-amfi.patch

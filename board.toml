@@ -40,7 +40,9 @@ windows = [
 [kernel]
 defconfig = "dada_defconfig"
 config_fragments = ["arch:configs/common.config", "soc:configs/sm8750.config", "os:configs/ipados.config"]
-patch_series = ["arch:patches/xnu/series", "soc:patches/xnu/series", "os:patches/xnu/series", "device:patches/xnu/series"]
+# The OS series is not applied as a whole: patches/xnu/series takes its two XnuPrelink patches and replaces its
+# zzz-boot-progress.patch with the reduced zzz-boot-progress-min.patch.
+patch_series = ["arch:patches/xnu/series", "soc:patches/xnu/series", "device:patches/xnu/series"]
 # Ordered archive plan. The storage transport needs the pinned
 # IOBlockStorageDevice reference object (build-storage-classes.py) and then the
 # kext-binding pass (build-storage-kext-bindings.py) that rebinds its base-class
@@ -57,9 +59,16 @@ archives = [
   "build-storage-classes.py",
   "component:DadaUfs",
 "build-dada-platform-power.py",
-  "build-storage-kext-bindings.py --component DadaUfs",
+  # The kernel step does not hand the kernelcache or the prelink slide to archive builders, so both are explicit. The
+  # path is relative to the build tree (out/dada/<os>/dada/tree): out/ipsw is where "unixnu ipsw fetch KernelCache"
+  # leaves the decompressed image, and the slide is [kernel.prelink] slide of the OS profile.
+  "build-storage-kext-bindings.py --component DadaUfs --kernelcache ../../../../ipsw/21H461/kernelcache.decompressed --slide=-0x1000000",
   "build-dada-ram-block.py",
   "build-dada-boot-log.py",
+  # The CPU framebuffer service: UniXNU-Pagani's NativeLegacyDisplay on the original IOMobileFramebufferLegacy of 21H461,
+  # with the dada BootProgress glue instead of the 13T peripherals. It writes
+  # build/native-legacy-display/libNativeLegacyDisplay.late.a, which CONFIG_XNU_NATIVE_LEGACY_DISPLAY links.
+  "build-dada-legacy-display.py --kernelcache ../../../../ipsw/21H461/kernelcache.decompressed",
 ]
 
 [kernel.prelink]
@@ -86,6 +95,9 @@ roots = [
   "com.apple.iokit.IOCECFamily",
   "com.apple.iokit.IOCryptoAcceleratorFamily",
   "com.apple.iokit.IOHDCPFamily",
+  "com.apple.iokit.IOHIDEventDriver",
+  "com.apple.iokit.IOHIDFamily",
+  "com.apple.iokit.IOMobileGraphicsFamily",
   "com.apple.iokit.IOReportFamily",
   "com.apple.iokit.IOSlowAdaptiveClockingFamily",
   "com.apple.iokit.IOStorageFamily",
@@ -167,6 +179,21 @@ kernel_args = [
   "-apfs_shared_datavolume",
   "panic_on_crash_disabled=1",
   "ml-timeout-lock-panic-scale=40",
+  # Display service (UniXNU-Pagani Stage 7, CPU copy into the GOP framebuffer): load IOMobileGraphicsFamily, register
+  # NativeLegacyDisplay on the GOP nub, validate and copy each swap, and pace the render server with a fixed 60 Hz timer.
+  "offline-mobile-graphics-load=1",
+  "offline-legacy-register=1",
+  "offline-legacy-phase=4",
+  "offline-legacy-gop=1",
+  "offline-legacy-pm=1",
+  "offline-legacy-validate=1",
+  "offline-legacy-transfer=1",
+  "offline-legacy-cpu-present=1",
+  "sheng-vsync=60",
+  "sheng-vsync-fixed=1",
+  # Volatile AppleKeyStore state (only with ephemeral-storage = 1 in /chosen, the RamBlock Data volume).
+  "offline-key-events=1",
+  "sheng-aks=1",
 ]
 
 [payload.adt]
@@ -186,6 +213,9 @@ unique_chip_id = "required"
 [adt.chosen.u32]
 # This board prelinks no AMFI, so there is no platform-code policy to restrict.
 amfi-only-platform-code = 0
+# The 1200x2670 GOP framebuffer as a 600x1335-point display, as the 13T's 1216x2640 one.
+display-scale = 2
+display-rotation = 0
 
 [adt.product.string]
 model = "xiaomi,dada"
