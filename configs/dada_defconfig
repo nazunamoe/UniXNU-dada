@@ -67,6 +67,8 @@ CONFIG_XNU_DT_PANIC_REGION=y
 # volume as authorized (no signature policy). The UUID is the SystemOS APFS volume UUID of 21H461.
 CONFIG_XNU_NATIVE_RAM_BLOCK=y
 CONFIG_XNU_DADA_BOOT_LOG=y
+# Nothing in the kernel script links the boot log archive (it also carries the link stubs of package/DadaLinkStubs.c).
+CONFIG_XNU_EXTRA_LD_ARCHIVES="-Wl,-force_load,{tree}/build/dada-boot-log/libDadaBootLog.a"
 CONFIG_XNU_OWNER_DATA_MOUNT=y
 CONFIG_XNU_OWNER_BOOT_MANIFEST=y
 CONFIG_XNU_OWNER_DATA_VOLUME_UUID="BA3B9FFA-0E35-4DE1-B942-E291D7BD5B52"

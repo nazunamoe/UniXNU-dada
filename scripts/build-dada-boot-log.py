@@ -38,9 +38,15 @@ proc_command = [str(proc_source) if arg == str(source) else str(proc_obj) if arg
 result = subprocess.run(proc_command, cwd=record['directory'], capture_output=True, text=True, timeout=120)
 if result.returncode:
     raise SystemExit(result.stdout[-4000:] + result.stderr[-4000:])
+stub_source = ROOT / 'kits/dada/DadaLinkStubs.c'
+stub_obj = OUT / 'DadaLinkStubs.o'
+stub_command = [str(stub_source) if arg == str(source) else str(stub_obj) if arg == str(obj) else arg for arg in command]
+result = subprocess.run(stub_command, cwd=record['directory'], capture_output=True, text=True, timeout=120)
+if result.returncode:
+    raise SystemExit(result.stdout[-4000:] + result.stderr[-4000:])
 archive = OUT / 'libDadaBootLog.a'
 archive.unlink(missing_ok=True)
-subprocess.run(['xcrun', 'ar', 'rcs', str(archive), str(obj), str(proc_obj)], check=True)
+subprocess.run(['xcrun', 'ar', 'rcs', str(archive), str(obj), str(proc_obj), str(stub_obj)], check=True)
 (OUT / 'build-report.json').write_text(json.dumps({
     'source_sha256': __import__('hashlib').sha256(source.read_bytes()).hexdigest(),
     'archive_sha256': __import__('hashlib').sha256(archive.read_bytes()).hexdigest(),

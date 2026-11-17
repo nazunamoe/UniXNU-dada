@@ -71,6 +71,9 @@ archives = [
   "build-dada-legacy-display.py --kernelcache ../../../../ipsw/21H461/kernelcache.decompressed",
 ]
 
+[kernel.embedded_components]
+RamBlock = "build-dada-ram-block.py"
+
 [kernel.prelink]
 # tool, kernel, kernelcache_sha256 and slide come from the OS profile. This
 # board prelinks no AMFI (and nothing that depends on it), so it also clears the

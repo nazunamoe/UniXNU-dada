@@ -40,7 +40,7 @@ jobs:
         run: |
           # DadaUfs catalog entry and the four script patches that are not upstream (device/docs/patches).
           for patch in unixnu-components-dadaufs unixnu-kern-exit-owner-cache unixnu-owner-cache-bringup \
-                       unixnu-symbols-skip-missing unixnu-ufs-archive-override; do
+                       unixnu-symbols-skip-missing unixnu-ufs-archive-override unixnu-armcpu-no-sleep-header; do
             git apply --verbose "../device/docs/patches/$patch.patch"
           done
       - name: Install host tools and check the SDK

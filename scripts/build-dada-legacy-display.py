@@ -211,11 +211,12 @@ def code(data,info):
     sec=next(s for g in info['segments'] for s in g['sections'] if s['name']=='__text');return data[sec['fileoff']:sec['fileoff']+sec['size']]
 require(code(raw,image)==code(late.read_bytes(),macho(late.read_bytes())),'Only owned initializer section registration changes')
 objects=[late,OUT/'original-bindings.o']
-for component in ('Stage7Probe','NativeKeyStoreEvents','NativeGOPPresenter'):
+# NativeGOPPresenter is built once below (display_object), from kits/dada/display; listing it here too links it twice.
+for component in ('Stage7Probe','NativeKeyStoreEvents'):
     print(run(['python3',ROOT/'scripts/build-stage7-driver.py',component],text=True),end='')
     directory=ROOT/'build'/('native-keystore-events' if component=='NativeKeyStoreEvents' else 'native-legacy-display')
     source_obj=directory/(component+'.o')
-    if component in ('NativeKeyStoreEvents','NativeGOPPresenter'):
+    if component == 'NativeKeyStoreEvents':
         staged=directory/(component+'.late.o')
         run([objcopy,'--remove-section=__DATA,__mod_init_func',
              f'--globalize-symbol=__GLOBAL__sub_I_{component}.cpp',source_obj,staged])
